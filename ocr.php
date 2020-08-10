@@ -1,33 +1,7 @@
 <?php
-// error_reporting(0);
+error_reporting(0);
 
-function imageUrl($url)
-{
-    // $url = "https://api.ocr.space/parse/imageurl?apikey=f2cfec72f988957&url={$url}&language=chs&isOverlayRequired=true";
-    // Initializes a new cURL session
-    
-    require __DIR__ . '/vendor/autoload.php';
-    $fileData = fopen($target_file, 'r');
-    $client = new \GuzzleHttp\Client();
-    try {
-    $r = $client->request('POST', 'https://api.ocr.space/parse/imageurl',[
-        'headers' => ['apiKey' => 'f2cfec72f988957','url' => $url]
-    ]);
-    $response =  json_decode($r->getBody(),true);
-    
-    if($response['ErrorMessage'] == "") {
-        echo $r->getBody();
-    } else {
-        header('HTTP/1.0 400 Forbidden');
-        echo $response['ErrorMessage'];
-    }
-    } catch(Exception $err) {
-        header('HTTP/1.0 403 Forbidden');
-        echo $err->getMessage();
-    }
-}
-
-if(isset($_POST['submit']) && isset($_FILES)) {
+if(isset($_POST['submit']) && !empty($_FILES["image"]["name"])) {
     require __DIR__ . '/vendor/autoload.php';
     $target_dir = "uploads/";
     $uploadOk = 1;
@@ -39,13 +13,14 @@ if(isset($_POST['submit']) && isset($_FILES)) {
         echo "Sorry, your file is too large.";
         $uploadOk = 0;
     }
+    // var_dump($FileType); 
     if($FileType != "pdf" && $FileType != "png" && $FileType != "jpg") {
         header('HTTP/1.0 403 Forbidden');
         echo "Sorry, please upload a pdf file";
         $uploadOk = 0;
     }
     if ($uploadOk == 1) {
-   
+
         if (move_uploaded_file($_FILES["image"]["tmp_name"], $target_file)) {
             uploadToApi($target_file);
         } else {
@@ -53,9 +28,32 @@ if(isset($_POST['submit']) && isset($_FILES)) {
             echo "Sorry, there was an error uploading your file.";
         }
     } 
+} else if (isset($_POST['submit']) && isset($_POST['url'])) {
+    uploadToUrl($_POST['url']);
 } else {
     header('HTTP/1.0 403 Forbidden');
     echo "Sorry, please upload a pdf file";
+}
+
+function uploadToUrl($url)
+{    
+    require __DIR__ . '/vendor/autoload.php';
+    $client = new \GuzzleHttp\Client();
+    try {
+    $r = $client->request('GET', "https://api.ocr.space/parse/imageurl?apikey=f2cfec72f988957&url={$url}&language=chs&isOverlayRequired=true");
+    $response =  json_decode($r->getBody(),true);
+    
+    if($response['ErrorMessage'] == "") {
+        header('Content-Type: application/json');
+        echo $r->getBody();
+    } else {
+        header('HTTP/1.0 400 Forbidden');
+        echo $response['ErrorMessage'][0];
+    }
+    } catch(Exception $err) {
+        header('HTTP/1.0 403 Forbidden');
+        echo $err->getMessage(); 
+    }
 }
 
 function uploadToApi($target_file){
@@ -75,6 +73,7 @@ function uploadToApi($target_file){
     $response =  json_decode($r->getBody(),true);
     
     if($response['ErrorMessage'] == "") {
+        header('Content-Type: application/json');
         echo $r->getBody();
     } else {
         header('HTTP/1.0 400 Forbidden');
